@@ -68,3 +68,5 @@ src/
 - Filter products by type (vegan, cheese, promotions)
 - Search functionality
 - Real-time updates with Firebase
+=======
+
