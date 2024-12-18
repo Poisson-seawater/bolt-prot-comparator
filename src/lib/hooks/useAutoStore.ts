@@ -13,3 +13,4 @@ export function useAutoStore(storeName: string | undefined) {
       });
     }
   }, [storeName, stores, addStore]);
+  }

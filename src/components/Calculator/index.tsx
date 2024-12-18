@@ -1,37 +1,61 @@
 import { useState } from 'react';
 import { useStore } from '@/lib/store';
 import { useAutoStore } from '@/lib/hooks/useAutoStore';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Switch } from '@/components/ui/switch';
 import { useToast } from '@/hooks/use-toast';
-import { ProductFormData } from '@/types';
 import { v4 as uuidv4 } from 'uuid';
 import { calculatePricePerHundredGrams } from '@/lib/utils/price';
-import { PriceInput } from './PriceInput';
-import { ProductTypeToggles } from './ProductTypeToggles';
 import { ProductCard } from '../ProductCard';
 import { cn } from '@/lib/utils';
 
+// Définition des types
+interface Product {
+  id: string;
+  createdAt: Date;
+  name: string;
+  store: string;
+  proteinContent: number;
+  pricePerHundredGrams: number;
+  isPromotion: boolean;
+  isVegan: boolean;
+  isCheese: boolean;
+}
+
+interface ProductFormData {
+  name?: string;
+  store?: string;
+  proteinContent?: number;
+  pricePerHundredGrams?: number;
+  isPromotion: boolean;
+  isVegan: boolean;
+  isCheese: boolean;
+}
+
 export function Calculator() {
-  const [useTotalPrice, setUseTotalPrice] = useState(false);
-  const [formData, setFormData] = useState<Partial<ProductFormData>>({
+  const [useTotalPrice] = useState(false);
+  const [formData, setFormData] = useState<ProductFormData>({
+    name: undefined,
+    store: undefined,
+    proteinContent: undefined,
+    pricePerHundredGrams: undefined,
     isPromotion: false,
     isVegan: false,
     isCheese: false,
   });
   const [weight, setWeight] = useState('');
   const [totalPrice, setTotalPrice] = useState('');
-  const [addedProduct, setAddedProduct] = useState<ProductFormData | null>(null);
+  const [addedProduct, setAddedProduct] = useState<Product | null>(null);
   const [isAnimating, setIsAnimating] = useState(false);
 
-  const { addProduct, stores } = useStore();
+  const { addProduct } = useStore();
   const { toast } = useToast();
   useAutoStore(formData.store);
 
   const resetForm = () => {
     setFormData({
+      name: undefined,
+      store: undefined,
+      proteinContent: undefined,
+      pricePerHundredGrams: undefined,
       isPromotion: false,
       isVegan: false,
       isCheese: false,
@@ -42,21 +66,35 @@ export function Calculator() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formData.name || !formData.store || !formData.proteinContent) return;
+
+    if (!formData.name || !formData.store || !formData.proteinContent) {
+      toast({
+        title: "Error",
+        description: "Name, store, and protein content are required.",
+        variant: "destructive",
+      });
+      return;
+    }
 
     const pricePerHundredGrams = useTotalPrice
       ? calculatePricePerHundredGrams(totalPrice, weight)
       : formData.pricePerHundredGrams || 0;
 
-    const product = {
+    const completeProduct: Product = {
       id: uuidv4(),
-      ...formData,
+      createdAt: new Date(),
+      name: formData.name,
+      store: formData.store,
+      proteinContent: formData.proteinContent,
       pricePerHundredGrams,
-    } as ProductFormData;
+      isPromotion: formData.isPromotion,
+      isVegan: formData.isVegan,
+      isCheese: formData.isCheese,
+    };
 
     try {
-      await addProduct(product);
-      setAddedProduct(product);
+      await addProduct(completeProduct);
+      setAddedProduct(completeProduct);
       setIsAnimating(true);
       toast({
         title: "Product Added Successfully",
@@ -65,12 +103,11 @@ export function Calculator() {
       });
       resetForm();
 
-      // Clear the added product notification after 5 seconds
       setTimeout(() => {
         setIsAnimating(false);
         setTimeout(() => {
           setAddedProduct(null);
-        }, 300); // Wait for fade out animation
+        }, 300);
       }, 5000);
     } catch (error) {
       toast({
@@ -81,10 +118,91 @@ export function Calculator() {
     }
   };
 
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value, type, checked } = e.target;
+    setFormData(prev => ({
+      ...prev,
+      [name]: type === 'checkbox' ? checked : value
+    }));
+  };
+
   return (
     <div className="space-y-8">
       <form onSubmit={handleSubmit} className="space-y-6">
-        {/* ... rest of the form code ... */}
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <input
+            type="text"
+            name="name"
+            value={formData.name || ''}
+            onChange={handleInputChange}
+            placeholder="Product Name"
+            className="rounded border p-2"
+          />
+          <input
+            type="text"
+            name="store"
+            value={formData.store || ''}
+            onChange={handleInputChange}
+            placeholder="Store"
+            className="rounded border p-2"
+          />
+          <input
+            type="number"
+            name="proteinContent"
+            value={formData.proteinContent || ''}
+            onChange={handleInputChange}
+            placeholder="Protein Content"
+            className="rounded border p-2"
+          />
+          <input
+            type="number"
+            name="pricePerHundredGrams"
+            value={formData.pricePerHundredGrams || ''}
+            onChange={handleInputChange}
+            placeholder="Price per 100g"
+            className="rounded border p-2"
+          />
+        </div>
+
+        <div className="flex space-x-4">
+          <label className="flex items-center">
+            <input
+              type="checkbox"
+              name="isPromotion"
+              checked={formData.isPromotion}
+              onChange={handleInputChange}
+              className="mr-2"
+            />
+            Promotion
+          </label>
+          <label className="flex items-center">
+            <input
+              type="checkbox"
+              name="isVegan"
+              checked={formData.isVegan}
+              onChange={handleInputChange}
+              className="mr-2"
+            />
+            Vegan
+          </label>
+          <label className="flex items-center">
+            <input
+              type="checkbox"
+              name="isCheese"
+              checked={formData.isCheese}
+              onChange={handleInputChange}
+              className="mr-2"
+            />
+            Cheese
+          </label>
+        </div>
+
+        <button
+          type="submit"
+          className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"
+        >
+          Add Product
+        </button>
       </form>
 
       {addedProduct && (
@@ -103,7 +221,7 @@ export function Calculator() {
                 Product Added Successfully
               </h3>
             </div>
-            <ProductCard product={{ ...addedProduct, createdAt: new Date() }} />
+            <ProductCard product={addedProduct} />
           </div>
         </div>
       )}
